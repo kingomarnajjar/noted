@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Notepad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Roboto Mono', monospace;
+        }
+        .notepad {
+            flex: 1;
+            width: 100%;
+            font-size: 24px;
+            padding: 20px;
+            box-sizing: border-box;
+            border: none;
+            outline: none;
+            resize: none;
+            line-height: 1.5;
+            font-family: 'Roboto Mono', monospace;
+            color: #000000;
+        }
+        .controls {
+            background-color: #f1f1f1;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #ddd;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .font-size-control, .font-family-control, .color-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .save-controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #FFD700; /* Halo Yellow */
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        button::after {
+            content: '';
+            position: absolute;
+            top: -20%;
+            left: -20%;
+            width: 140%;
+            height: 140%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        button:hover::after {
+            opacity: 1;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0;
+            }
+        }
+        select, input[type="color"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        input[type="color"] {
+            height: 34px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <textarea class="notepad" id="notepad" placeholder="Start typing here..."></textarea>
+    
+    <div class="controls">
+        <div class="font-family-control">
+            <label for="font-family">Font:</label>
+            <select id="font-family">
+                <option value="'Roboto Mono', monospace">Roboto Mono</option>
+                <option value="'Roboto', sans-serif">Roboto</option>
+                <option value="'Open Sans', sans-serif">Open Sans</option>
+                <option value="'Courier Prime', monospace">Courier Prime</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+            </select>
+        </div>
+        
+        <div class="font-size-control">
+            <label for="font-size">Size:</label>
+            <button id="decrease-font">A-</button>
+            <span id="current-size">24px</span>
+            <button id="increase-font">A+</button>
+        </div>
+        
+        <div class="color-control">
+            <label for="text-color">Color:</label>
+            <input type="color" id="text-color" value="#000000">
+        </div>
+        
+        <div class="save-controls">
+            <button id="save-btn">Save</button>
+            <button id="clear-btn">Clear</button>
+        </div>
+    </div>
+
+    <script>
+        // Get elements
+        const notepad = document.getElementById('notepad');
+        const saveBtn = document.getElementById('save-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const decreaseFont = document.getElementById('decrease-font');
+        const increaseFont = document.getElementById('increase-font');
+        const currentSize = document.getElementById('current-size');
+        const fontFamily = document.getElementById('font-family');
+        const textColor = document.getElementById('text-color');
+        
+        // Load saved note from localStorage if available
+        window.addEventListener('load', () => {
+            const savedNote = localStorage.getItem('browserNotepadContent');
+            if (savedNote) {
+                notepad.value = savedNote;
+            }
+            
+            const savedFontSize = localStorage.getItem('browserNotepadFontSize');
+            if (savedFontSize) {
+                notepad.style.fontSize = savedFontSize;
+                currentSize.textContent = savedFontSize;
+            }
+            
+            const savedFontFamily = localStorage.getItem('browserNotepadFontFamily');
+            if (savedFontFamily) {
+                notepad.style.fontFamily = savedFontFamily;
+                fontFamily.value = savedFontFamily;
+            }
+            
+            const savedTextColor = localStorage.getItem('browserNotepadTextColor');
+            if (savedTextColor) {
+                notepad.style.color = savedTextColor;
+                textColor.value = savedTextColor;
+            }
+            
+            // Set focus to the notepad
+            notepad.focus();
+        });
+        
+        // Auto-save content every 5 seconds
+        setInterval(() => {
+            localStorage.setItem('browserNotepadContent', notepad.value);
+        }, 5000);
+        
+        // Save button click handler
+        saveBtn.addEventListener('click', () => {
+            localStorage.setItem('browserNotepadContent', notepad.value);
+            alert('Note saved!');
+        });
+        
+        // Clear button click handler
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the notepad?')) {
+                notepad.value = '';
+                localStorage.setItem('browserNotepadContent', '');
+            }
+        });
+        
+        // Font size controls
+        decreaseFont.addEventListener('click', () => {
+            const currentFontSize = parseInt(window.getComputedStyle(notepad).fontSize);
+            if (currentFontSize > 12) {
+                const newSize = currentFontSize - 2 + 'px';
+                notepad.style.fontSize = newSize;
+                currentSize.textContent = newSize;
+                localStorage.setItem('browserNotepadFontSize', newSize);
+            }
+        });
+        
+        increaseFont.addEventListener('click', () => {
+            const currentFontSize = parseInt(window.getComputedStyle(notepad).fontSize);
+            const newSize = currentFontSize + 2 + 'px';
+            notepad.style.fontSize = newSize;
+            currentSize.textContent = newSize;
+            localStorage.setItem('browserNotepadFontSize', newSize);
+        });
+        
+        // Font family control
+        fontFamily.addEventListener('change', () => {
+            notepad.style.fontFamily = fontFamily.value;
+            localStorage.setItem('browserNotepadFontFamily', fontFamily.value);
+        });
+        
+        // Text color control
+        textColor.addEventListener('input', () => {
+            notepad.style.color = textColor.value;
+            localStorage.setItem('browserNotepadTextColor', textColor.value);
+        });
+        
+        // Ensure text area is focused when clicking on it
+        notepad.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    </script>
+</body>
+</html>
