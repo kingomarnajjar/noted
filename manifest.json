@@ -1,7 +1,7 @@
 {
-  "name": "Browser Notepad",
-  "short_name": "Notepad",
-  "description": "A simple browser-based notepad application",
+  "name": "noted.",
+  "short_name": "noted.",
+  "description": "note ur shitty thoughts and dreams stooge",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",

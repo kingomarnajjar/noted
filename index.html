@@ -32,6 +32,28 @@
             font-family: 'Roboto Mono', monospace;
             color: #000000;
         }
+        .canvas-container {
+            flex: 1;
+            width: 100%;
+            display: none;
+            position: relative;
+            background-color: white;
+        }
+        #drawing-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: url("https://radical.omar-c29.workers.dev/memes/maccas32.jpg") 12 12, pointer;
+        }
+        .drawing-controls {
+            background-color: #f1f1f1;
+            padding: 10px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #ddd;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
         .controls {
             background-color: #f1f1f1;
             padding: 10px;
@@ -42,7 +64,7 @@
             flex-wrap: wrap;
             gap: 10px;
         }
-        .font-size-control, .font-family-control, .color-control {
+        .font-size-control, .font-family-control, .color-control, .pen-control {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -61,6 +83,10 @@
             position: relative;
             overflow: hidden;
             z-index: 1;
+        }
+        .active-mode {
+            background-color: #FFA500; /* Orange for active mode */
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
         }
         button::after {
             content: '';
@@ -105,6 +131,27 @@
 <body>
     <textarea class="notepad" id="notepad" placeholder="Start typing here..."></textarea>
     
+    <div class="canvas-container" id="canvas-container">
+        <canvas id="drawing-canvas"></canvas>
+    </div>
+    
+    <div class="drawing-controls" id="drawing-controls">
+        <div class="pen-control">
+            <label for="pen-size">Pen Size:</label>
+            <input type="range" id="pen-size" min="1" max="20" value="3">
+            <span id="pen-size-value">3px</span>
+        </div>
+        
+        <div class="color-control">
+            <label for="pen-color">Pen Color:</label>
+            <input type="color" id="pen-color" value="#000000">
+        </div>
+        
+        <div class="save-controls">
+            <button id="clear-canvas-btn">Clear Canvas</button>
+        </div>
+    </div>
+    
     <div class="controls">
         <div class="font-family-control">
             <label for="font-family">Font:</label>
@@ -131,6 +178,7 @@
         </div>
         
         <div class="save-controls">
+            <button id="draw-btn">Draw</button>
             <button id="save-btn">Save</button>
             <button id="clear-btn">Clear</button>
         </div>
@@ -139,8 +187,16 @@
     <script>
         // Get elements
         const notepad = document.getElementById('notepad');
+        const canvasContainer = document.getElementById('canvas-container');
+        const drawingCanvas = document.getElementById('drawing-canvas');
+        const drawingControls = document.getElementById('drawing-controls');
         const saveBtn = document.getElementById('save-btn');
         const clearBtn = document.getElementById('clear-btn');
+        const drawBtn = document.getElementById('draw-btn');
+        const clearCanvasBtn = document.getElementById('clear-canvas-btn');
+        const penSize = document.getElementById('pen-size');
+        const penSizeValue = document.getElementById('pen-size-value');
+        const penColor = document.getElementById('pen-color');
         const decreaseFont = document.getElementById('decrease-font');
         const increaseFont = document.getElementById('increase-font');
         const currentSize = document.getElementById('current-size');
@@ -230,7 +286,156 @@
         notepad.addEventListener('click', (e) => {
             e.stopPropagation();
         });
-
+        
+        // Canvas drawing functionality
+        let isDrawing = false;
+        let ctx;
+        
+        // Initialize canvas
+        function initCanvas() {
+            // Set canvas dimensions to match container
+            function setCanvasDimensions() {
+                drawingCanvas.width = canvasContainer.clientWidth;
+                drawingCanvas.height = canvasContainer.clientHeight;
+            }
+            
+            // Call once and also on resize
+            setCanvasDimensions();
+            window.addEventListener('resize', setCanvasDimensions);
+            
+            // Get context
+            ctx = drawingCanvas.getContext('2d');
+            
+            // Initialize saved drawing if available
+            const savedDrawing = localStorage.getItem('browserNotepadDrawing');
+            if (savedDrawing) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = savedDrawing;
+            }
+        }
+        
+        // Drawing event listeners
+        function setupDrawingEvents() {
+            // Start drawing
+            drawingCanvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                ctx.beginPath(); // Start a new path when we start drawing
+                draw(e);
+            });
+            
+            drawingCanvas.addEventListener('touchstart', (e) => {
+                isDrawing = true;
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                drawingCanvas.dispatchEvent(mouseEvent);
+                e.preventDefault();
+            });
+            
+            // Draw
+            drawingCanvas.addEventListener('mousemove', (e) => {
+                if (isDrawing) draw(e);
+            });
+            
+            drawingCanvas.addEventListener('touchmove', (e) => {
+                if (isDrawing) {
+                    const touch = e.touches[0];
+                    const mouseEvent = new MouseEvent('mousemove', {
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                    drawingCanvas.dispatchEvent(mouseEvent);
+                }
+                e.preventDefault();
+            });
+            
+            // Stop drawing
+            window.addEventListener('mouseup', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.beginPath(); // End the current path
+                    saveDrawing();
+                }
+            });
+            
+            window.addEventListener('touchend', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.beginPath(); // End the current path
+                    saveDrawing();
+                }
+            });
+        }
+        
+        // Drawing function
+        function draw(e) {
+            const rect = drawingCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineWidth = penSize.value;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = penColor.value;
+            
+            if (isDrawing) {
+                // Only start a new path when we start drawing
+                if (e.type === 'mousedown' || e.type === 'touchstart') {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        // Save drawing to localStorage
+        function saveDrawing() {
+            const dataURL = drawingCanvas.toDataURL();
+            localStorage.setItem('browserNotepadDrawing', dataURL);
+        }
+        
+        // Toggle between text and drawing modes
+        drawBtn.addEventListener('click', () => {
+            if (notepad.style.display === 'none') {
+                // Switch to text mode
+                canvasContainer.style.display = 'none';
+                drawingControls.style.display = 'none';
+                notepad.style.display = 'block';
+                drawBtn.classList.remove('active-mode');
+            } else {
+                // Switch to drawing mode
+                notepad.style.display = 'none';
+                canvasContainer.style.display = 'block';
+                drawingControls.style.display = 'flex';
+                drawBtn.classList.add('active-mode');
+                
+                // Initialize canvas if not already done
+                if (!ctx) {
+                    initCanvas();
+                    setupDrawingEvents();
+                }
+            }
+        });
+        
+        // Pen size control
+        penSize.addEventListener('input', () => {
+            penSizeValue.textContent = `${penSize.value}px`;
+        });
+        
+        // Clear canvas button
+        clearCanvasBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear the canvas?')) {
+                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                localStorage.removeItem('browserNotepadDrawing');
+            }
+        });
+        
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
